@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>point cloud scope</title>
+
+    <style>
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+            /*background: linear-gradient(135deg, #ffffff 0%, #646464 100%);*/
+            background: #ffffff;
+            color: #000000;
+        }
+
+        #container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        #viewer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        #controller-panel {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            min-width: 300px;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(0, 0, 0, 0.6);
+            border-radius: 10px;
+            z-index: 1000;
+        }
+
+        #controller-panel h2 {
+            margin-bottom: 15px;
+            font-size: 20px;
+            color: #000000
+        }
+
+        .controller-group {
+            margin-bottom: 15px;
+        }
+
+        .controller-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 14px;
+            color: #000000;
+        }
+
+        .controller-group span {
+            margin-left: 5px;
+            text-decoration: underline solid #000000;
+        }
+
+        .controller-group input,
+        .controller-group select {
+            width: 100%;
+            padding: 8px;
+            color: #000000;
+            font-size: 14px;
+            border: 1px solid black;
+            border-radius: 5px;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 8px;
+            margin-top: 15px;
+        }
+
+        button {
+            flex: 1;
+            padding: 1px;
+            border: 1px solid black;
+            border-radius: 5px;
+            background: rgba(255, 255, 255, 0.5);
+            color: #000000;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .checkbox-group {
+            display: flex;
+            gap: 8px;
+            margin-top: 15px;
+        }
+
+        .checkbox-group input,
+        .checkbox-group label {
+            padding: 4px;
+            font-size: 14px;
+        }
+
+        .checkbox-group span {
+            padding: 10px;
+            border: 1px solid black;
+            border-radius: 5px;
+        }
+
+        #info-group {
+            margin-top: 15px;
+            font-size: 14px;
+        }
+
+        #info-group div {
+            margin-bottom: 6px;
+        }
+
+        .file-input-wrapper {
+            position: relative;
+            overflow: hidden;
+            display: inline-block;
+            width: 100%;
+        }
+
+        .file-input-wrapper input[type=file] {
+            position: absolute;
+            left: -9999px;
+        }
+
+        .file-input-label {
+            margin-top: 5px;
+            display: block;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.5);
+            border: 1px solid black;
+            color: white;
+            border-radius: 5px;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        .file-input-label:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+
+    </style>
+</head>
+
+<body>
+<div id="container">
+
+    <div id="viewer"></div>
+
+    <div id="controller-panel">
+        <h2>PCD controller</h2>
+
+        <div class="controller-group">
+            <label>input PCD file
+                <span id="fileNameText"></span>
+            </label>
+            <div class="file-input-wrapper">
+                <input type="file" id="fileInput" accept=".txt,.ply">
+                <label for="fileInput" class="file-input-label">choose file</label>
+            </div>
+        </div>
+
+        <div class="controller-group">
+            <label>point size
+                <span id="pointSizeText">0.0001</span>
+            </label>
+            <input type="range" id="pointSize" min="0.00001" max="0.001" step="0.00001" value="0.0001"/>
+        </div>
+
+        <div class="controller-group">
+            <label>color mode</label>
+            <select id="colorMode">
+                <option value="height">高度着色</option>
+                <option value="centerDistance">中心距离着色</option>
+                <option value="coordinate">坐标着色</option>
+                <option value="uniform">统一着色</option>
+                <option value="originalRGB">原始着色</option>
+            </select>
+        </div>
+
+        <div class="controller-group">
+            <label>color selection</label>
+            <input type="color" id="uniformColor" value="#000000"/>
+        </div>
+
+        <div class="controller-group">
+            <label>background color selection</label>
+            <input type="color" id="backgroundColor" value="#ffffff"/>
+        </div>
+
+        <div class="button-group">
+            <button onclick="resetCamera()">reset camera</button>
+            <button onclick="toggleAnimation()">toggle animation</button>
+            <button onclick="exportImage()">export image</button>
+            <button onclick="toggleFullscreen()">fullscreen</button>
+        </div>
+
+        <div class="checkbox-group">
+            <span>
+                <input type="checkbox" id="showGrid" checked>
+                <label>show grid</label>
+            </span>
+            <span>
+                <input type="checkbox" id="showAxes" checked>
+                <label>show axes</label>
+            </span>
+        </div>
+
+
+        <div id="info-group">
+            <div><strong>info</strong></div>
+            <div>鼠标左键: 旋转</div>
+            <div>鼠标右键: 平移</div>
+            <div>鼠标滚轮: 缩放</div>
+            <div id="pointCount">points number: -</div>
+            <div id="bboxSize">bbox size: -</div>
+            <div id="bboxCenter">bbox center: -</div>
+        </div>
+
+    </div>
+
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/PLYLoader.js"></script>
+<script src="./pcdScope.js"></script>
+<script>
+
+    viewerElement = document.getElementById('viewer')
+    uniColor = document.getElementById('uniformColor').value;
+    colorMode = document.getElementById('colorMode').value;
+    backgroundColor = document.getElementById('backgroundColor').value;
+
+    init();
+
+    grid.visible = document.getElementById("showGrid").checked;
+    axes.visible = document.getElementById("showAxes").checked;
+
+    bindEvents();
+
+    // 绑定事件
+    function bindEvents() {
+        // 文件输入
+        document.getElementById('fileInput').addEventListener('change', updateFileName);
+        document.getElementById('fileInput').addEventListener('change', handleFileSelect);
+        // point size
+        document.getElementById('pointSize').addEventListener('input', myUpdatePointSize);
+        // color mode
+        document.getElementById('colorMode').addEventListener('change', myUpdateColorMode);
+        // uniform color
+        document.getElementById('uniformColor').addEventListener('change', myUpdateUniformColor);
+        // background color
+        document.getElementById('backgroundColor').addEventListener('input', updateBackgroundColor);
+        // 窗口大小改变
+        window.addEventListener('resize', onWindowResize);
+        // 显示网格
+        document.getElementById("showGrid").addEventListener("change", (e) => {
+            grid.visible = e.target.checked;
+        });
+        // 显示坐标轴
+        document.getElementById("showAxes").addEventListener("change", (e) => {
+            axes.visible = e.target.checked;
+        });
+    }
+
+    // 更新 file name
+    function updateFileName(event) {
+        const file = event.target.files[0];
+        if (file) {
+            document.getElementById('fileNameText').innerText = file.name;
+        }
+    }
+
+    // 更新 background color
+    function updateBackgroundColor(event) {
+        const color = event.target.value;
+        backgroundColor = color;
+        if (scene) {
+            scene.background = new THREE.Color(color);
+        }
+    }
+
+    // 更新 point size
+    function myUpdatePointSize(event) {
+        const size = event.target.value;
+        document.getElementById('pointSizeText').innerText = size;
+        updatePointSize(size)
+    }
+
+    function myUpdateColorMode(event) {
+        const mode = event.target.value;
+        updateColorMode(mode)
+    }
+
+    function myUpdateUniformColor(event) {
+        const color = event.target.value;
+        updateUniformColor(color)
+    }
+
+    // 更新信息
+    function updateInfo() {
+        if (currentPointCloud) {
+            const count = currentPointCloud.geometry.attributes.position.count
+            document.getElementById('pointCount').innerText = `points number: ${count.toLocaleString()}`;
+
+            const bbox = currentPointCloud.geometry.boundingBox;
+            const size = bbox.getSize(new THREE.Vector3());
+            const center = bbox.getCenter(new THREE.Vector3());
+            document.getElementById("bboxSize").innerText = `bbox size:\tx ${size.x.toFixed(4)}\ty ${size.y.toFixed(4)}\tz ${size.z.toFixed(4)}`;
+            document.getElementById("bboxCenter").innerText = `bbox center:\tx ${center.x.toFixed(4)}\ty ${center.y.toFixed(4)}\tz ${center.z.toFixed(4)}`;
+        }
+    }
+
+    // 更新 PointSizeRange
+    function updatePointSizeRange() {
+        const slider = document.getElementById("pointSize");
+        // slider.min = estimatedPointSize.min;
+        // slider.max = estimatedPointSize.max;
+        // slider.value = pointSize;
+        // slider.step = estimatedPointSize.step;
+        slider.min = pointSize * 0.1;
+        slider.max = pointSize * 10;
+        slider.value = pointSize
+        slider.step = (slider.max - slider.min) / 100;
+        document.getElementById('pointSizeText').innerText = pointSize;
+    }
+
+    // 保存原函数引用
+    const myCreatePcd = createPcd;
+    // 重写 createPcd
+    createPcd = function (...args) {
+        // 调用原函数
+        myCreatePcd.apply(this, args);
+        // 更新信息
+        updateInfo();
+        // 更新point size 范围
+        updatePointSizeRange()
+    };
+
+    // 默认加载示例
+    window.addEventListener('load', async function () {
+        const filePath = "asset/top2-red.txt"
+        // const filePath = "asset/top2.ply"
+        const ext = filePath.split(".").pop().toLowerCase();
+        const res = await fetch(filePath);
+
+        let geometry, points;
+        if (ext === "txt") {
+            const text = await res.text();
+            points = createPointsFromTxt(text);
+            geometry = createGeometryFromPoints(points)
+        } else if (ext === "ply") {
+            const buffer = await res.arrayBuffer();
+            geometry = createGeometryFromPly(buffer);
+            points = creatPointsFromGeometry(geometry);
+        }
+        console.log('pcd has color: ', geometry.hasAttribute('color')); // points[0].r !== undefined
+        console.log('pcd points number: ', geometry.attributes.position.count);
+        // 更新全局变量
+        currentPoints = points;
+        // 计算 包围盒bbox
+        geometry.computeBoundingBox();
+        const bbox = geometry.boundingBox;
+        const bboxSize = bbox.getSize(new THREE.Vector3());
+        const bboxCenter = bbox.getCenter(new THREE.Vector3());
+        console.log('pcd bbox size: ', bboxSize, ', center: ', bboxCenter)
+        // 获取包围球
+        const sphere = bbox.getBoundingSphere(new THREE.Sphere());
+        const sphereCenter = sphere.center;
+        const sphereRadius = sphere.radius;
+        console.log('pcd bbox sphere center: ', sphereCenter, ', radius: ', sphereRadius)
+        // 计算 geometry的法向量
+        geometry.computeVertexNormals();
+        // 创建pcd
+        createPcd(geometry);
+
+        document.getElementById('fileNameText').innerText = filePath.split("/").pop();
+    });
+
+
+</script>
+
+</body>
+</html>
