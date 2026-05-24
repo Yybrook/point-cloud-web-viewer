@@ -45,7 +45,7 @@ function init() {
     camera = new THREE.PerspectiveCamera(
         75,
         window.innerWidth / window.innerHeight,
-        0.1,
+        0.01,
         1000
     );
     // 设置初始位置
@@ -194,10 +194,11 @@ async function handleFile(file) {
         const bboxCenter = bbox.getCenter(new THREE.Vector3());
         console.log('pcd bbox size: ', bboxSize, ', center: ', bboxCenter)
         // 获取包围球
-        const sphere = bbox.getBoundingSphere(new THREE.Sphere());
+        geometry.computeBoundingSphere();
+        const sphere = geometry.boundingSphere;
         const sphereCenter = sphere.center;
         const sphereRadius = sphere.radius;
-        console.log('pcd bbox sphere center: ', sphereCenter, ', radius: ', sphereRadius)
+        console.log('pcd bounding sphere center: ', sphereCenter, ', radius: ', sphereRadius)
 
         // 计算 geometry的法向量
         geometry.computeVertexNormals();
@@ -380,9 +381,10 @@ function createPcd(geometry) {
         size: pointSize,
         vertexColors: true,
         sizeAttenuation: true,
-        transparent: true,
-        opacity: 0.9,
-        depthWrite: false
+        transparent: false,
+        opacity: 1,
+        depthTest: true,
+        depthWrite: true
     });
     // 生成 Points 对象
     currentPointCloud = new THREE.Points(geometry, material);
@@ -465,33 +467,40 @@ function updatePointColors(geometry) {
 
 // 调整相机位置
 function adjustCamera() {
-    // 获取 bbox
-    const bbox = currentPointCloud.geometry.boundingBox;
     // 获取包围球
-    const sphere = bbox.getBoundingSphere(new THREE.Sphere());
+    currentPointCloud.geometry.computeBoundingSphere();
+    const sphere = currentPointCloud.geometry.boundingSphere;
     const center = sphere.center;
     const radius = sphere.radius;
+    console.log('bounding sphere center: ', center, 'radius: ', radius);
     if (!Number.isFinite(radius) || radius === 0) return;
 
     // FOV 转弧度
-    const fov = camera.fov * Math.PI / 180;
+    // const fov = camera.fov * Math.PI / 180;
+    const verticalFov = THREE.MathUtils.degToRad(camera.fov);
+    const horizontalFov = 2 * Math.atan(Math.tan(verticalFov / 2) * camera.aspect);
+    const fitFov = Math.min(verticalFov, horizontalFov);
+
     // 计算距离
-    let distance = radius / Math.sin(fov / 2);
+    let distance = radius / Math.tan(fitFov / 2);
     // 距离偏置
     distance *= cameraOffsetScale;
-    console.log('camera fov: ', fov, 'distance: ', distance / cameraOffsetScale, 'distance with ratio: ', distance);
 
     // 相机方向（等距观察）
     const dir = new THREE.Vector3(1, 1, 1).normalize();
     // 设置相机位置
     camera.position.copy(center).addScaledVector(dir, distance);
-    // camera.near = distance / 100;
-    // camera.far = distance * 100;
+    // 设置近场 远场
+    camera.near = radius * 0.01;
+    camera.far = radius * 100;
+    console.log('camera fov: ', fitFov, 'distance: ', distance, 'near: ', camera.near, "far: ", camera.far);
     // 更新投影矩阵
     camera.updateProjectionMatrix();
     // 让相机看向中心
     camera.lookAt(center);
     controls.target.copy(center);
+    controls.minDistance = radius * 0.1;
+    controls.maxDistance = radius * 20;
     // 更新控制器目标
     controls.update();
 }

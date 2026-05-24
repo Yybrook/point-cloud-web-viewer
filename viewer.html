@@ -387,10 +387,11 @@
         const bboxCenter = bbox.getCenter(new THREE.Vector3());
         console.log('pcd bbox size: ', bboxSize, ', center: ', bboxCenter)
         // 获取包围球
-        const sphere = bbox.getBoundingSphere(new THREE.Sphere());
+        geometry.computeBoundingSphere();
+        const sphere = geometry.boundingSphere;
         const sphereCenter = sphere.center;
         const sphereRadius = sphere.radius;
-        console.log('pcd bbox sphere center: ', sphereCenter, ', radius: ', sphereRadius)
+        console.log('pcd bounding sphere center: ', sphereCenter, ', radius: ', sphereRadius)
         // 计算 geometry的法向量
         geometry.computeVertexNormals();
         // 创建pcd
