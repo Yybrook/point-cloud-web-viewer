@@ -54,6 +54,16 @@
             color: #000000
         }
 
+        #togglePanelContent {
+            width: 100%;
+            margin-bottom: 15px;
+            padding: 6px;
+        }
+
+        #controller-panel.collapsed #panelContent {
+            display: none;
+        }
+
         .controller-group {
             margin-bottom: 15px;
         }
@@ -171,6 +181,9 @@
     <div id="controller-panel">
         <h2>PCD controller</h2>
 
+        <button id="togglePanelContent" type="button">hide controls</button>
+
+        <div id="panelContent">
         <div class="controller-group">
             <label>input PCD file
                 <span id="fileNameText"></span>
@@ -237,6 +250,7 @@
             <div id="bboxSize">bbox size: -</div>
             <div id="bboxCenter">bbox center: -</div>
         </div>
+        </div>
 
     </div>
 
@@ -273,6 +287,7 @@
         document.getElementById('uniformColor').addEventListener('change', myUpdateUniformColor);
         // background color
         document.getElementById('backgroundColor').addEventListener('input', updateBackgroundColor);
+        document.getElementById('togglePanelContent').addEventListener('click', togglePanelContent);
         // 窗口大小改变
         window.addEventListener('resize', onWindowResize);
         // 显示网格
@@ -283,6 +298,13 @@
         document.getElementById("showAxes").addEventListener("change", (e) => {
             axes.visible = e.target.checked;
         });
+    }
+
+    function togglePanelContent() {
+        const panel = document.getElementById('controller-panel');
+        const button = document.getElementById('togglePanelContent');
+        const isCollapsed = panel.classList.toggle('collapsed');
+        button.innerText = isCollapsed ? 'show controls' : 'hide controls';
     }
 
     // 更新 file name
